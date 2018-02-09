@@ -1,8 +1,17 @@
+#ifdef __KERNEL__
+#include <linux/ioctl.h>
+#else
+#include <sys/ioctl.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
+
+#define ANSI_HIDE_CURSOR "\x1b[?25l"
+#define ANSI_GO_HOME "\x1b[H"
+#define ANSI_SHOW_CURSOR "\x1b[?25h"
 
 
 struct econfig {
@@ -47,17 +56,29 @@ void disableRawMode(int fd) {
   tcsetattr(fd,TCSAFLUSH,&orig_termios);
 }
 
+char *prepareTopbar() 
+{
+  char *beg = "\x1b[48;5;26m[ \x1b[32;5mundefined\x1b[0m\x1b[48;5;26m ]", 
+       *end = "\x1b[0m";
+  int count = econf.colno - sizeof(beg) - sizeof(end);
+  char * topbar = (char *) malloc(econf.colno);
+  
+  snprintf(topbar, 300, "%s%-64s%s", beg, " ", end);
+
+  return topbar;
+   
+}
+
 void refreshScreen()
 {
-  /* Hide terminal cursor */
-  printf("\x1b[?25l");
-  printf("\x1b[H");
-  char *topbar = "\x1b[48;5;26m[ \x1b[32;3mHello my dear\x1b[0m";
+  /* Hide cursor and move it to top left corner */
+  char *specchars = ANSI_HIDE_CURSOR ANSI_GO_HOME;
+  char *show_cursor = ANSI_SHOW_CURSOR;
+  char *topbar = prepareTopbar();
 
-  strcpy(econf.data, topbar) ;
+  snprintf(econf.data, 400, "%s%s%s", specchars, topbar, show_cursor);
   
   fflush(stdin); /* force it to go out */
-  printf("\x1b[?25h"); /* Show cursor. */
   write(STDOUT_FILENO, econf.data, econf.rowno * econf.colno);
 }
 
@@ -69,7 +90,10 @@ void listenKey()
   while ((nread = read(STDIN_FILENO, &key, 1)) == 0);
   if (nread == -1) exit(-1);
 
-  if (key == 'q') exit(0);
+  if (key == 'q') {
+    disableRawMode(STDIN_FILENO);
+    exit(0);
+  }
 }
 
 int main() {
@@ -89,7 +113,6 @@ int main() {
     listenKey();
   }
 
-  disableRawMode(STDIN_FILENO);
 
   return 1;
 }
