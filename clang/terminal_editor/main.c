@@ -18,12 +18,12 @@
 struct econfig {
   int rowno;
   int colno;
-  char *data;
 } econf;
 
 struct econtent {
   int pos;
   char *data;
+  char *pdata;
 } econt;
 
 static int BUF_SIZE;
@@ -65,39 +65,47 @@ void disableRawMode(int fd) {
 
 void appendBuffer(char *str)
 {
-  snprintf(econt.data + econt.pos, BUF_SIZE, "%s%s", econt.data, str);
+  econt.pdata += snprintf(econt.pdata, BUF_SIZE, "%s", str);
 }
 
-char *prepareTopbar() 
+void prepareTopbar() 
 {
-  char *beg = "\x1b[48;5;26m[ \x1b[32;5mundefined\x1b[0m\x1b[48;5;26m ]", 
-       *end = ANSI_RST_STYLE;
+  char *beg = "\x1b[48;5;26m[ \x1b[32;5mundefined\x1b[0m\x1b[48;5;26m ]"; 
   int count = econf.colno - sizeof(beg) - 5;
-  char * topbar = (char *) malloc(econf.colno),
+  char * topbar = (char *) malloc(300),
        * format = (char *) malloc(10);
   
-  snprintf(format, 10, "%%s%%-%ds%%s", count);
-  snprintf(topbar, 300, format, beg, " ", end);
+  snprintf(format, 12, "%%s%%-%ds%%s", count);
+  snprintf(topbar, 300, format, beg, " ", ANSI_RST_STYLE);
 
+  appendBuffer(topbar);
+  free(topbar);
   free(format);
+}
 
-  return topbar;
-   
+void prepareContent() 
+{
+  int rep = econf.rowno - 2;
+
+  while (rep--) {
+    appendBuffer("~\r\n"); 
+  }
+  
 }
 
 void refreshScreen()
 {
-  econt.pos = 0;
+  econt.pdata = econt.data;
   /* Hide cursor and move it to top left corner */
-  char *specchars = ANSI_HIDE_CURSOR ANSI_GO_HOME;
-  char *show_cursor = ANSI_SHOW_CURSOR;
-  char *topbar = prepareTopbar();
+  appendBuffer(ANSI_HIDE_CURSOR ANSI_GO_HOME);
 
-  int actual_size = snprintf(econt.data, BUF_SIZE, "%s%s%s", specchars, topbar, show_cursor);
-  free(topbar);
+  prepareTopbar();
+  prepareContent();
   
-  fflush(stdin); /* force it to go out */
-  write(STDOUT_FILENO, econt.data, actual_size);
+  appendBuffer(ANSI_SHOW_CURSOR);
+  
+  //fflush(stdout); /* force it to go out */
+  write(STDOUT_FILENO, econt.data, BUF_SIZE);
 }
 
 void listenKey()
@@ -125,6 +133,7 @@ int main() {
   BUF_SIZE = w.ws_row * w.ws_col * 2;
 
   econt.data = (char *) malloc(BUF_SIZE);
+  econt.pdata = econt.data;
 
   while (1) {
     refreshScreen();
