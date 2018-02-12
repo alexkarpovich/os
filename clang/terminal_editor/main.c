@@ -12,6 +12,7 @@
 #define ANSI_HIDE_CURSOR "\x1b[?25l"
 #define ANSI_GO_HOME "\x1b[H"
 #define ANSI_SHOW_CURSOR "\x1b[?25h"
+#define ANSI_RST_STYLE "\x1b[0m"
 
 
 struct econfig {
@@ -20,6 +21,12 @@ struct econfig {
   char *data;
 } econf;
 
+struct econtent {
+  int pos;
+  char *data;
+} econt;
+
+static int BUF_SIZE;
 static struct termios orig_termios;
 
 int enableRawMode(int fd) {
@@ -56,14 +63,23 @@ void disableRawMode(int fd) {
   tcsetattr(fd,TCSAFLUSH,&orig_termios);
 }
 
+void appendBuffer(char *str)
+{
+  snprintf(econt.data + econt.pos, BUF_SIZE, "%s%s", econt.data, str);
+}
+
 char *prepareTopbar() 
 {
   char *beg = "\x1b[48;5;26m[ \x1b[32;5mundefined\x1b[0m\x1b[48;5;26m ]", 
-       *end = "\x1b[0m";
-  int count = econf.colno - sizeof(beg) - sizeof(end);
-  char * topbar = (char *) malloc(econf.colno);
+       *end = ANSI_RST_STYLE;
+  int count = econf.colno - sizeof(beg) - 5;
+  char * topbar = (char *) malloc(econf.colno),
+       * format = (char *) malloc(10);
   
-  snprintf(topbar, 300, "%s%-64s%s", beg, " ", end);
+  snprintf(format, 10, "%%s%%-%ds%%s", count);
+  snprintf(topbar, 300, format, beg, " ", end);
+
+  free(format);
 
   return topbar;
    
@@ -71,15 +87,17 @@ char *prepareTopbar()
 
 void refreshScreen()
 {
+  econt.pos = 0;
   /* Hide cursor and move it to top left corner */
   char *specchars = ANSI_HIDE_CURSOR ANSI_GO_HOME;
   char *show_cursor = ANSI_SHOW_CURSOR;
   char *topbar = prepareTopbar();
 
-  snprintf(econf.data, 400, "%s%s%s", specchars, topbar, show_cursor);
+  int actual_size = snprintf(econt.data, BUF_SIZE, "%s%s%s", specchars, topbar, show_cursor);
+  free(topbar);
   
   fflush(stdin); /* force it to go out */
-  write(STDOUT_FILENO, econf.data, econf.rowno * econf.colno);
+  write(STDOUT_FILENO, econt.data, actual_size);
 }
 
 void listenKey()
@@ -104,9 +122,9 @@ int main() {
   econf.colno = w.ws_col;
   enableRawMode(STDIN_FILENO);
 
-  int scr_size = w.ws_row * w.ws_col * 2;
+  BUF_SIZE = w.ws_row * w.ws_col * 2;
 
-  econf.data = (char *) malloc(scr_size);
+  econt.data = (char *) malloc(BUF_SIZE);
 
   while (1) {
     refreshScreen();
