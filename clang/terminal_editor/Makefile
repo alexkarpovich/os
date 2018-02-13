@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS=-c -Wall
 LDFLAGS=
-SOURCES=main.c
+SOURCES=main.c editor.c
 OBJECTS=$(SOURCES:.cpp=.o)
 EXECUTABLE=main
 
