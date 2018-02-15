@@ -12,6 +12,8 @@ void init(tedi *e, int argc, char *argv[])
   e->rows = (trow *) malloc(e->nrow);
   e->ptrow = e->rows;
 
+  if (argc > 1) readFile(e, argv[1]);
+
   startLoop(e); 
 }
 
@@ -23,6 +25,24 @@ void startLoop(tedi *e)
   }
 }
 
+void readFile(tedi *e, char *filename)
+{
+  FILE * file = fopen(filename, "r");
+
+  if (file == NULL) {
+    perror("Cannot open the file.\n");
+    exit(-1);
+  }
+
+  /* Get file size */
+  fseek(file, 0, SEEK_END); 
+  long size = ftell(file);
+  fseek(file, 0, SEEK_SET); 
+
+  e->data = (char *) malloc(size);
+  fread(e->data, 1, size, file);
+  fclose(file);
+}
 
 int enableRawMode() {
     struct termios raw;
@@ -78,26 +98,80 @@ void appendRow(tedi *e, char *str)
   e->ptrow += 1;
 }
 
+void addTopbar(tedi *e)
+{
+  char *begin = ANSI_HIDE_CURSOR ANSI_GO_HOME "\x1b[38;2;30;82;190m Hello \x1b[48;2;21;167;216m World",
+       *format = (char *) malloc(14), 
+       *res = (char *) malloc(e->ncol * 3);
+  int padding = e->ncol - strlen(begin) + 44;
+
+  snprintf(format, 14, "%%s%%-%ds%%s", padding);
+  snprintf(res, e->ncol * 3, format, begin, " ", ANSI_RST_STYLE); 
+
+  free(format); 
+  appendRow(e, res);
+}
+
+void addStatusbar(tedi *e)
+{
+  char *begin = "\x1b[38;2;30;82;190m status \x1b[48;2;21;167;216m bar",
+       *format = (char *) malloc(14), 
+       *res = (char *) malloc(e->ncol * 3);
+  int padding = e->ncol - strlen(begin) + 35;
+
+  snprintf(format, 14, "%%s%%-%ds%%s", padding);
+  snprintf(res, e->ncol * 3, format, begin, " ", ANSI_RST_STYLE ANSI_SHOW_CURSOR); 
+
+  free(format); 
+  appendRow(e, res);
+}
+
+void addContent(tedi *e)
+{
+  long count,
+       pos = 0, 
+       prev_pos = 0, 
+       fsize = e->data != NULL ? strlen(e->data) : 0;
+  char *str;
+
+  /* Prepare editor rows with data from file */
+  while (pos < fsize) {
+    if (e->data[pos] == '\n' || e->data[pos] == '\0') {
+      count = pos - prev_pos + 1;
+      str = (char *) malloc(count); 
+
+      strncpy(str, e->data + prev_pos, count);
+      str[count - 1] = '\0';
+      appendRow(e, str);
+      
+      prev_pos = pos + 1;
+    } 
+
+    ++pos;
+  }
+
+  /* Calculate pointer to the last content row */
+  trow *lptr = e->rows + e->nrow - 2;
+
+  /* Fill empty files with ~ */
+  while (e->ptrow < lptr) {
+    appendRow(e, "~" ANSI_CLR_LINE); 
+  }
+}
+
 void refreshScreen(tedi *e)
 {
-  int lineno = 0;
   trow *cur = e->rows;
   e->ptrow = e->rows; 
 
-  appendRow(e, ANSI_HIDE_CURSOR ANSI_GO_HOME "\x1b[38;2;30;82;190m Hello \x1b[48;2;21;167;216m World" ANSI_RST_STYLE);
+  addTopbar(e);
+  addContent(e);
+  addStatusbar(e);
 
-  while (lineno++ < e->nrow) {
-    if (cur < e->ptrow) {
-      printf("%s", cur->render);
-      cur += 1;
-      continue;
-    }
-
-    printf("\r\n%d %s", lineno, "!");
+  while (cur < e->ptrow) {
+    printf("%s\r\n", cur->render);
+    cur += 1;
   }
-
-  printf(ANSI_SHOW_CURSOR);
-
 }
 
 

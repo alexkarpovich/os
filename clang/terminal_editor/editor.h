@@ -15,7 +15,7 @@
 #define ANSI_GO_HOME "\x1b[H"
 #define ANSI_SHOW_CURSOR "\x1b[?25h"
 #define ANSI_RST_STYLE "\x1b[0m"
-
+#define ANSI_CLR_LINE "\x1b[0K"
 
 struct row {
   char *render;
@@ -40,5 +40,6 @@ void disableRawMode();
 void refreshScreen(tedi *e);
 void listenKey();
 void startLoop(tedi *e);
+void readFile(tedi *e, char *filename);
 
 #endif
