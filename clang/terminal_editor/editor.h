@@ -18,7 +18,6 @@
 
 
 struct row {
-  int lineno;
   char *render;
 };
 
@@ -29,6 +28,7 @@ struct editor {
   int ncol;
   char *data;
   trow *rows;    
+  trow *ptrow;
 };
 
 typedef struct editor tedi;
@@ -37,8 +37,8 @@ static struct termios orig_termios;
 void init(tedi *e, int argc, char *argv[]);
 int enableRawMode();
 void disableRawMode();
-void refreshScreen();
+void refreshScreen(tedi *e);
 void listenKey();
-void startLoop();
+void startLoop(tedi *e);
 
 #endif

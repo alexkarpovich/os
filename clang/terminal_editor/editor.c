@@ -9,13 +9,16 @@ void init(tedi *e, int argc, char *argv[])
   e->nrow = w.ws_row;
   e->ncol = w.ws_col;
 
-  startLoop(); 
+  e->rows = (trow *) malloc(e->nrow);
+  e->ptrow = e->rows;
+
+  startLoop(e); 
 }
 
-void startLoop()
+void startLoop(tedi *e)
 {
   while(1) {
-    refreshScreen();
+    refreshScreen(e);
     listenKey();
   }
 }
@@ -43,7 +46,7 @@ int enableRawMode() {
     raw.c_cc[VTIME] = 1; /* 100 ms timeout (unit is tens of second). */
 
     /* put terminal in raw mode after flushing */
-    if (tcsetattr(STDOUT_FILENO, TCSAFLUSH,&raw) < 0) goto fatal;
+    if (tcsetattr(STDOUT_FILENO, TCSAFLUSH, &raw) < 0) goto fatal;
     return 0;
 
 fatal:
@@ -52,7 +55,7 @@ fatal:
 
 void disableRawMode() {
    /* Don't even check the return value as it's too late. */
-  tcsetattr(STDOUT_FILENO, TCSAFLUSH,&orig_termios);
+  tcsetattr(STDOUT_FILENO, TCSAFLUSH, &orig_termios);
 }
 
 void listenKey()
@@ -64,14 +67,37 @@ void listenKey()
   if (nread == -1) exit(-1);
 
   if (key == 'q') {
-    disableRawMode(STDIN_FILENO);
+    disableRawMode();
     exit(0);
   }
 }
 
-void refreshScreen()
+void appendRow(tedi *e, char *str)
 {
-  
+  e->ptrow->render = str;
+  e->ptrow += 1;
+}
+
+void refreshScreen(tedi *e)
+{
+  int lineno = 0;
+  trow *cur = e->rows;
+  e->ptrow = e->rows; 
+
+  appendRow(e, ANSI_HIDE_CURSOR ANSI_GO_HOME "\x1b[38;2;30;82;190m Hello \x1b[48;2;21;167;216m World" ANSI_RST_STYLE);
+
+  while (lineno++ < e->nrow) {
+    if (cur < e->ptrow) {
+      printf("%s", cur->render);
+      cur += 1;
+      continue;
+    }
+
+    printf("\r\n%d %s", lineno, "!");
+  }
+
+  printf(ANSI_SHOW_CURSOR);
+
 }
 
 
