@@ -6,16 +6,17 @@
 int main() 
 {
   char *x = (char *) malloc(100);
-  char *y = "hello world";
+  char *c = x;
+  char *y = "";
   char *z = "ending";
   clock_t begin = clock();
 
-  snprintf(x, 100, "%s%s", y, z);
-  snprintf(x + 20, 100, "%s%s", x, x);
+  c += snprintf(c, 100, "%s%s", c, y);
+  c += snprintf(c, 100, "%s%s", c, z);
 
   clock_t end = clock();
   double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
 
-  printf("%s %f\n", x, time_spent);
+  printf("%s\n", x);
 }
 

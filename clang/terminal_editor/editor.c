@@ -134,19 +134,19 @@ void addContent(tedi *e)
        pos = 0, 
        prev_pos = 0, 
        fsize = e->data != NULL ? strlen(e->data) : 0;
-  char *str;
+  char *str, *empty_line = "~" ANSI_CLR_LINE;
 
   /* Prepare editor rows with data from file */
   while (pos < fsize) {
     if (e->data[pos] == '\n' || e->data[pos] == '\0') {
       count = pos - prev_pos + 1;
-      str = (char *) malloc(count); 
+      str = malloc(count); 
 
       strncpy(str, e->data + prev_pos, count);
       str[count - 1] = '\0';
 
       appendRow(e, str);
-      
+ 
       prev_pos = pos + 1;
     } 
 
@@ -154,10 +154,10 @@ void addContent(tedi *e)
   }
 
   /* Calculate pointer to the last content row */
-  trow *lptr = e->rows + e->nrow - 2;
+  trow *lptr = e->rows + (e->nrow - 2);
 
-  /* Fill empty files with ~ */
-  while (e->ptrow < lptr) appendRow(e, "~" ANSI_CLR_LINE); 
+  /* Fill empty lines with ~ */
+  while (e->ptrow < lptr) appendRow(e, empty_line); 
 }
 
 void refreshScreen(tedi *e)
@@ -171,7 +171,7 @@ void refreshScreen(tedi *e)
   addContent(e);
   addStatusbar(e);
 
-  while (cur < e->ptrow) {
+  while (cur < e->ptrow - 39) {
     ptrout += snprintf(ptrout, e->nrender, "%s%s" ANSI_CLR_LINE "\r\n", ptrout, cur->render);
     cur += 1;
   }
