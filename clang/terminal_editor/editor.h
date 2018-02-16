@@ -26,7 +26,9 @@ typedef struct row trow;
 struct editor {
   int nrow;
   int ncol;
+  int nrender;
   char *data;
+  char *render;
   trow *rows;    
   trow *ptrow;
 };

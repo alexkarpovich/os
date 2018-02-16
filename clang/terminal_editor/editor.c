@@ -8,8 +8,10 @@ void init(tedi *e, int argc, char *argv[])
   ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
   e->nrow = w.ws_row;
   e->ncol = w.ws_col;
+  e->nrender = e->nrow * e->ncol * 2;
 
   e->rows = (trow *) malloc(e->nrow);
+  e->render = malloc(e->nrender);
   e->ptrow = e->rows;
 
   if (argc > 1) readFile(e, argv[1]);
@@ -106,10 +108,10 @@ void addTopbar(tedi *e)
   int padding = e->ncol - strlen(begin) + 44;
 
   snprintf(format, 14, "%%s%%-%ds%%s", padding);
-  snprintf(res, e->ncol * 3, format, begin, " ", ANSI_RST_STYLE); 
+  snprintf(res, e->ncol * 3, format, begin, " ", ANSI_RST_STYLE);
 
-  free(format); 
   appendRow(e, res);
+  free(format); 
 }
 
 void addStatusbar(tedi *e)
@@ -122,8 +124,8 @@ void addStatusbar(tedi *e)
   snprintf(format, 14, "%%s%%-%ds%%s", padding);
   snprintf(res, e->ncol * 3, format, begin, " ", ANSI_RST_STYLE ANSI_SHOW_CURSOR); 
 
-  free(format); 
   appendRow(e, res);
+  free(format); 
 }
 
 void addContent(tedi *e)
@@ -142,6 +144,7 @@ void addContent(tedi *e)
 
       strncpy(str, e->data + prev_pos, count);
       str[count - 1] = '\0';
+
       appendRow(e, str);
       
       prev_pos = pos + 1;
@@ -154,26 +157,25 @@ void addContent(tedi *e)
   trow *lptr = e->rows + e->nrow - 2;
 
   /* Fill empty files with ~ */
-  while (e->ptrow < lptr) {
-    appendRow(e, "~" ANSI_CLR_LINE); 
-  }
+  while (e->ptrow < lptr) appendRow(e, "~" ANSI_CLR_LINE); 
 }
 
 void refreshScreen(tedi *e)
 {
+  char *ptrout = e->render;
   trow *cur = e->rows;
   e->ptrow = e->rows; 
+  e->render[0] = '\0';
 
   addTopbar(e);
   addContent(e);
   addStatusbar(e);
 
   while (cur < e->ptrow) {
-    printf("%s\r\n", cur->render);
+    ptrout += snprintf(ptrout, e->nrender, "%s%s" ANSI_CLR_LINE "\r\n", ptrout, cur->render);
     cur += 1;
   }
+
+  write(STDOUT_FILENO, e->render, e->nrender);
 }
-
-
-
 
